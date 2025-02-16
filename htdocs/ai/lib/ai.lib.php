@@ -1,6 +1,7 @@
 <?php
 /* Copyright (C) 2022 Alice Adminson <aadminson@example.com>
  * Copyright (C) 2024       Frédéric France             <frederic.france@free.fr>
+ * Copyright (C) 2024		MDW							<mdeweerd@users.noreply.github.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,10 +23,34 @@
  * \brief   Library files with common functions for Ai
  */
 
+
 /**
  * Prepare admin pages header
  *
- * @return array
+ * @return array<string,array<string,string>>}>
+ */
+function getLitOfAIFeatures()
+{
+	global $langs;
+
+	$arrayofaifeatures = array(
+		'textgenerationemail' => array('label' => $langs->trans('TextGeneration').' ('.$langs->trans("EmailContent").')', 'picto'=>'', 'status'=>'dolibarr'),
+		'textgenerationwebpage' => array('label' => $langs->trans('TextGeneration').' ('.$langs->trans("WebsitePage").')', 'picto'=>'', 'status'=>'dolibarr'),
+		'textgeneration' => array('label' => $langs->trans('TextGeneration').' ('.$langs->trans("Other").')', 'picto'=>'', 'status'=>'notused'),
+		'imagegeneration' => array('label' => 'ImageGeneration', 'picto'=>'', 'status'=>'notused'),
+		'videogeneration' => array('label' => 'VideoGeneration', 'picto'=>'', 'status'=>'notused'),
+		'audiogeneration' => array('label' => 'AudioGeneration', 'picto'=>'', 'status'=>'notused'),
+		'transcription' => array('label' => 'Transcription', 'picto'=>'', 'status'=>'notused'),
+		'translation' => array('label' => 'Translation', 'picto'=>'', 'status'=>'notused')
+	);
+
+	return $arrayofaifeatures;
+}
+
+/**
+ * Prepare admin pages header
+ *
+ * @return array<array{0:string,1:string,2:string}>
  */
 function aiAdminPrepareHead()
 {

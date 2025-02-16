@@ -28,9 +28,20 @@
 // Load Dolibarr environment
 require '../../main.inc.php';
 require_once DOL_DOCUMENT_ROOT."/core/lib/admin.lib.php";
-require_once '../lib/ai.lib.php';
+require_once DOL_DOCUMENT_ROOT."/core/class/doleditor.class.php";
+require_once DOL_DOCUMENT_ROOT."/ai/lib/ai.lib.php";
 
-$langs->loadLangs(array("admin"));
+/**
+ * @var Conf $conf
+ * @var DoliDB $db
+ * @var HookManager $hookmanager
+ * @var Translate $langs
+ * @var User $user
+ */
+
+$langs->loadLangs(array("admin", "website", "other"));
+
+$arrayofaifeatures = getLitOfAIFeatures();
 
 // Parameters
 $action = GETPOST('action', 'aZ09');
@@ -41,18 +52,10 @@ if (empty($action)) {
 	$action = 'edit';
 }
 
-$value = GETPOST('value', 'alpha');
-$label = GETPOST('label', 'alpha');
-$scandir = GETPOST('scan_dir', 'alpha');
-$type = 'myobject';
+$content = GETPOST('content');
 
 $error = 0;
 $setupnotempty = 0;
-
-// Access control
-if (!$user->admin) {
-	accessforbidden();
-}
 
 
 // Set this to 1 to use the factory to manage constants. Warning, the generated module will be compatible with version v15+ only
@@ -68,6 +71,7 @@ $formSetup = new FormSetup($db);
 $arrayofia = array(
 	'chatgpt' => 'ChatGPT',
 	'groq' => 'Groq',
+	'custom' => 'Custom'
 	//'gemini' => 'Gemini'
 );
 
@@ -85,13 +89,28 @@ foreach ($arrayofia as $ia => $ialabel) {
 	$item->nameText = $langs->trans("AI_API_KEY").' ('.$ialabel.')';
 	$item->defaultFieldValue = '';
 	$item->fieldParams['hideGenerateButton'] = 1;
+	$item->fieldParams['trClass'] = $ia;
 	$item->cssClass = 'minwidth500 text-security';
+
+	$item = $formSetup->newItem('AI_API_'.strtoupper($ia).'_URL');	// Name of constant must end with _KEY so it is encrypted when saved into database.
+	$item->nameText = $langs->trans("AI_API_URL").' ('.$ialabel.')';
+	$item->defaultFieldValue = '';
+	$item->fieldParams['trClass'] = $ia;
+	$item->cssClass = 'minwidth500';
 }
 
 $setupnotempty = + count($formSetup->items);
 
 
 $dirmodels = array_merge(array('/'), (array) $conf->modules_parts['models']);
+
+// Access control
+if (!$user->admin) {
+	accessforbidden();
+}
+if (!isModEnabled('ai')) {
+	accessforbidden('Module AI not activated.');
+}
 
 
 /*
@@ -143,6 +162,56 @@ if (empty($setupnotempty)) {
 
 // Page end
 print dol_get_fiche_end();
+
+
+// Section to test
+print '<form action="'.$_SERVER["PHP_SELF"].'" method="POST">';
+print '<input type="hidden" name="token" value="'.newToken().'">';
+print '<input type="hidden" name="action" value="add">';
+print '<input type="hidden" name="backtopage" value="'.$backtopage.'">';
+
+$functioncode = GETPOST('functioncode');
+$out = '';
+
+if ($functioncode) {
+	$labeloffeature = empty($arrayofaifeatures[GETPOST('functioncode')]['label']) ? 'Undefined' : $arrayofaifeatures[GETPOST('functioncode')]['label'];
+
+	$out .= $langs->trans("Test").' '.$labeloffeature.'...<br><br>';
+
+	if (GETPOST('functioncode') == 'textgenerationemail') {
+		$showlinktoai = 1;
+		$showlinktolayout = 0;
+
+
+		$neweditor = new DolEditor('aicontenttotest', $content);
+		$out .= $neweditor->Create(1);
+
+		$out .= $form->buttonsSaveCancel("Test");
+	} else {
+		$out .= $langs->trans("FeatureNotYetAvailable").'<br><br>';
+		$functioncode = '';
+	}
+}
+
+if (!$functioncode) {
+	// Combo list of AI features
+	$out .= '<select name="functioncode" id="functioncode" class="flat minwidth300" placeholder="Test feature">';
+	$out .= '<option value="-1">'.$langs->trans("SelectFeatureToTest").'</option>';
+	foreach ($arrayofaifeatures as $key => $val) {
+		$labelhtml = $langs->trans($arrayofaifeatures[$key]['label']).($arrayofaifeatures[$key]['status'] == 'notused' ? ' <span class="opacitymedium">('.$langs->trans("NotYetAvailable").')</span>' : "");
+		$labeltext = $langs->trans($arrayofaifeatures[$key]['label']);
+		$out .= '<option value="'.$key.'" data-html="'.dol_escape_htmltag($labelhtml).'"';
+		$out .= (GETPOST('functioncode') == $key ? ' selected="selected"' : '');
+		$out .= '>'.dol_escape_htmltag($labeltext).'</option>';
+	}
+	$out .= '</select>';
+	$out .= ajax_combobox("functioncode");
+
+	$out .= '<input class="button small" type="submit" name="testmode" value="'.$langs->trans("Test").'">';
+}
+print $out;
+
+print '</form>';
 
 llxFooter();
 $db->close();
